@@ -21,6 +21,12 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+
+#define SCRFD_TYPE                             200
+#define YOLO_TYPE                             SCRFD_TYPE + 1
+
+int paramType = SCRFD_TYPE;
+
 static int draw_unsupported(cv::Mat &rgb) {
     const char text[] = "unsupported";
 
@@ -97,40 +103,83 @@ static Yolo *g_yolo = 0;
 
 static ncnn::Mutex lock;
 
+
+
 class MyNdkCamera : public NdkCameraWindow {
 public:
     virtual void on_image_render(cv::Mat &rgb) const;
 };
 
+static MyNdkCamera *g_camera = 0;
+
+
 void MyNdkCamera::on_image_render(cv::Mat &rgb) const {
     // scrfd
     {
         ncnn::MutexLockGuard g(lock);
-
-//        if (g_scrfd) {
-//            std::vector<FaceObject> faceobjects;
-//            g_scrfd->detect(rgb, faceobjects);
-//
-//            g_scrfd->draw(rgb, faceobjects);
-//        } else {
-//            // 绘制当前不支持
-//            draw_unsupported(rgb);
-//        }
-
-        if (g_yolo) {
-            std::vector<Object> objects;
-            g_yolo->detect(rgb, objects);
-            g_yolo->draw(rgb, objects);
-        } else {
-            // 绘制当前不支持
-            draw_unsupported(rgb);
+        switch (paramType) {
+            case SCRFD_TYPE:
+                if (g_scrfd) {
+                    std::vector<FaceObject> faceobjects;
+                    g_scrfd->detect(rgb, faceobjects);
+                    g_scrfd->draw(rgb, faceobjects);
+                } else {
+                    // 绘制当前不支持
+                    draw_unsupported(rgb);
+                }
+                break;
+            case YOLO_TYPE:
+                if (g_yolo) {
+                    std::vector<Object> objects;
+                    g_yolo->detect(rgb, objects);
+                    g_yolo->draw(rgb, objects);
+                } else {
+                    // 绘制当前不支持
+                    draw_unsupported(rgb);
+                }
+                break;
         }
     }
 
     draw_fps(rgb);
 }
 
-static MyNdkCamera *g_camera = 0;
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_solex_ncnnmaster_BaseNcnn_openCamera(JNIEnv *env, jobject thiz, jint facing) {
+    if (facing < 0 || facing > 1)
+        return JNI_FALSE;
+
+    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "openCamera %d", facing);
+
+    g_camera->open((int) facing);
+
+    return JNI_TRUE;
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_solex_ncnnmaster_BaseNcnn_closeCamera(JNIEnv *env, jobject thiz) {
+    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "closeCamera");
+
+    g_camera->close();
+
+    return JNI_TRUE;
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_solex_ncnnmaster_BaseNcnn_setOutputWindow(JNIEnv *env, jobject thiz, jobject surface) {
+    ANativeWindow *win = ANativeWindow_fromSurface(env, surface);
+
+    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "setOutputWindow %p", win);
+
+    g_camera->set_window(win);
+
+    return JNI_TRUE;
+}
+
 
 extern "C" {
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
@@ -186,7 +235,6 @@ Java_com_solex_ncnnmaster_SCRFDNcnn_loadModel(JNIEnv *env, jobject thiz, jobject
     // reload
     {
         ncnn::MutexLockGuard g(lock);
-
         if (use_gpu && ncnn::get_gpu_count() == 0) {
             // no gpu
             delete g_scrfd;
@@ -195,45 +243,12 @@ Java_com_solex_ncnnmaster_SCRFDNcnn_loadModel(JNIEnv *env, jobject thiz, jobject
             if (!g_scrfd)
                 g_scrfd = new SCRFD;
             g_scrfd->load(mgr, modeltype, use_gpu);
+            paramType = SCRFD_TYPE;
         }
     }
 
     return JNI_TRUE;
-
 }
-
-JNIEXPORT jboolean JNICALL
-Java_com_solex_ncnnmaster_SCRFDNcnn_openCamera(JNIEnv *env, jobject thiz, jint facing) {
-    if (facing < 0 || facing > 1)
-        return JNI_FALSE;
-
-    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "openCamera %d", facing);
-
-    g_camera->open((int) facing);
-
-    return JNI_TRUE;
-
-}
-
-JNIEXPORT jboolean JNICALL
-Java_com_solex_ncnnmaster_SCRFDNcnn_closeCamera(JNIEnv *env, jobject thiz) {
-    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "closeCamera");
-    g_camera->close();
-
-    return JNI_TRUE;
-}
-}
-
-extern "C"
-JNIEXPORT jboolean JNICALL
-Java_com_solex_ncnnmaster_SCRFDNcnn_setOutputWindow(JNIEnv *env, jobject thiz, jobject surface) {
-    ANativeWindow *win = ANativeWindow_fromSurface(env, surface);
-
-    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "setOutputWindow %p", win);
-
-    g_camera->set_window(win);
-
-    return JNI_TRUE;
 }
 
 // ----------------------YoloV8----------------------------------
@@ -290,47 +305,9 @@ Java_com_solex_ncnnmaster_Yolov8Ncnn_loadModel(JNIEnv *env, jobject thiz, jobjec
                 g_yolo = new Yolo;
             g_yolo->load(mgr, modeltype, target_size, mean_vals[(int) modelid],
                          norm_vals[(int) modelid], use_gpu);
+            paramType = YOLO_TYPE;
         }
     }
-
-    return JNI_TRUE;
-}
-
-
-
-extern "C"
-JNIEXPORT jboolean JNICALL
-Java_com_solex_ncnnmaster_Yolov8Ncnn_openCamera(JNIEnv *env, jobject thiz, jint facing) {
-    if (facing < 0 || facing > 1)
-        return JNI_FALSE;
-
-    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "openCamera %d", facing);
-
-    g_camera->open((int) facing);
-
-    return JNI_TRUE;
-}
-
-
-
-
-extern "C"
-JNIEXPORT jboolean JNICALL
-Java_com_solex_ncnnmaster_Yolov8Ncnn_closeCamera(JNIEnv *env, jobject thiz) {
-    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "closeCamera");
-
-    g_camera->close();
-
-    return JNI_TRUE;
-}
-extern "C"
-JNIEXPORT jboolean JNICALL
-Java_com_solex_ncnnmaster_Yolov8Ncnn_setOutputWindow(JNIEnv *env, jobject thiz, jobject surface) {
-    ANativeWindow *win = ANativeWindow_fromSurface(env, surface);
-
-    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "setOutputWindow %p", win);
-
-    g_camera->set_window(win);
 
     return JNI_TRUE;
 }

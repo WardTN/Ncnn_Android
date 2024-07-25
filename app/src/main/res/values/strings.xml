@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">Ncnn_Android</string>
+
     <string-array name="model_array">
         <item>500m</item>
         <item>500m_kps</item>
@@ -10,8 +11,21 @@
         <item>10g_kps</item>
         <item>34g</item>
     </string-array>
+
     <string-array name="cpugpu_array">
         <item>CPU</item>
         <item>GPU</item>
     </string-array>
+
+    <string-array name="model_type">
+        <item>SCRFD</item>
+        <item>YOLO</item>
+    </string-array>
+
+    <string-array name="model_yolo_array">
+        <item>yolov8n</item>
+        <item>yolov8s</item>
+    </string-array>
+
+
 </resources>
