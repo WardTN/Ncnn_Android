@@ -9,6 +9,16 @@ cmake_minimum_required(VERSION 3.18.1)
 
 project("ncnnmaster")
 
+
+include_directories(sample)
+
+
+file(GLOB src-files
+        ${CMAKE_SOURCE_DIR}/*.cpp
+        ${CMAKE_SOURCE_DIR}/sample/*.cpp
+        )
+
+
 set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/opencv-mobile-4.5.4-android/sdk/native/jni)
 find_package(OpenCV REQUIRED core imgproc)
 
@@ -29,7 +39,7 @@ add_library( # Sets the name of the library.
         SHARED
 
         # Provides a relative path to your source file(s).
-        native-lib.cpp ndkcamera.cpp scrfd.cpp)
+        ${src-files})
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by

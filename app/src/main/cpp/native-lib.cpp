@@ -7,8 +7,12 @@
 #include <vector>
 #include <platform.h>
 #include <benchmark.h>
-#include "scrfd.h"
 #include "ndkcamera.h"
+
+
+#include "scrfd.h"
+#include "yolo.h"
+
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -89,6 +93,8 @@ static int draw_fps(cv::Mat &rgb) {
 }
 
 static SCRFD *g_scrfd = 0;
+static Yolo *g_yolo = 0;
+
 static ncnn::Mutex lock;
 
 class MyNdkCamera : public NdkCameraWindow {
@@ -101,11 +107,20 @@ void MyNdkCamera::on_image_render(cv::Mat &rgb) const {
     {
         ncnn::MutexLockGuard g(lock);
 
-        if (g_scrfd) {
-            std::vector<FaceObject> faceobjects;
-            g_scrfd->detect(rgb, faceobjects);
+//        if (g_scrfd) {
+//            std::vector<FaceObject> faceobjects;
+//            g_scrfd->detect(rgb, faceobjects);
+//
+//            g_scrfd->draw(rgb, faceobjects);
+//        } else {
+//            // 绘制当前不支持
+//            draw_unsupported(rgb);
+//        }
 
-            g_scrfd->draw(rgb, faceobjects);
+        if (g_yolo) {
+            std::vector<Object> objects;
+            g_yolo->detect(rgb, objects);
+            g_yolo->draw(rgb, objects);
         } else {
             // 绘制当前不支持
             draw_unsupported(rgb);
@@ -212,6 +227,105 @@ Java_com_solex_ncnnmaster_SCRFDNcnn_closeCamera(JNIEnv *env, jobject thiz) {
 extern "C"
 JNIEXPORT jboolean JNICALL
 Java_com_solex_ncnnmaster_SCRFDNcnn_setOutputWindow(JNIEnv *env, jobject thiz, jobject surface) {
+    ANativeWindow *win = ANativeWindow_fromSurface(env, surface);
+
+    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "setOutputWindow %p", win);
+
+    g_camera->set_window(win);
+
+    return JNI_TRUE;
+}
+
+// ----------------------YoloV8----------------------------------
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_solex_ncnnmaster_Yolov8Ncnn_loadModel(JNIEnv *env, jobject thiz, jobject assetManager,
+                                               jint modelid, jint cpugpu) {
+    if (modelid < 0 || modelid > 6 || cpugpu < 0 || cpugpu > 1) {
+        return JNI_FALSE;
+    }
+
+    AAssetManager *mgr = AAssetManager_fromJava(env, assetManager);
+
+    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "loadModel %p", mgr);
+
+    const char *modeltypes[] =
+            {
+                    "n",
+                    "s",
+            };
+    const int target_sizes[] =
+            {
+                    320,
+                    320,
+            };
+
+    const float mean_vals[][3] =
+            {
+                    {103.53f, 116.28f, 123.675f},
+                    {103.53f, 116.28f, 123.675f},
+            };
+
+    const float norm_vals[][3] =
+            {
+                    {1 / 255.f, 1 / 255.f, 1 / 255.f},
+                    {1 / 255.f, 1 / 255.f, 1 / 255.f},
+            };
+
+    const char *modeltype = modeltypes[(int) modelid];
+    int target_size = target_sizes[(int) modelid];
+    bool use_gpu = (int) cpugpu == 1;
+
+    // reload
+    {
+        ncnn::MutexLockGuard g(lock);
+
+        if (use_gpu && ncnn::get_gpu_count() == 0) {
+            // no gpu
+            delete g_yolo;
+            g_yolo = 0;
+        } else {
+            if (!g_yolo)
+                g_yolo = new Yolo;
+            g_yolo->load(mgr, modeltype, target_size, mean_vals[(int) modelid],
+                         norm_vals[(int) modelid], use_gpu);
+        }
+    }
+
+    return JNI_TRUE;
+}
+
+
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_solex_ncnnmaster_Yolov8Ncnn_openCamera(JNIEnv *env, jobject thiz, jint facing) {
+    if (facing < 0 || facing > 1)
+        return JNI_FALSE;
+
+    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "openCamera %d", facing);
+
+    g_camera->open((int) facing);
+
+    return JNI_TRUE;
+}
+
+
+
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_solex_ncnnmaster_Yolov8Ncnn_closeCamera(JNIEnv *env, jobject thiz) {
+    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "closeCamera");
+
+    g_camera->close();
+
+    return JNI_TRUE;
+}
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_solex_ncnnmaster_Yolov8Ncnn_setOutputWindow(JNIEnv *env, jobject thiz, jobject surface) {
     ANativeWindow *win = ANativeWindow_fromSurface(env, surface);
 
     __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "setOutputWindow %p", win);

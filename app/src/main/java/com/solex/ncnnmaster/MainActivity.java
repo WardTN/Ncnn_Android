@@ -34,7 +34,8 @@ import androidx.core.content.ContextCompat;
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
     public static final int REQUEST_CAMERA = 100;
 
-    private SCRFDNcnn scrfdncnn = new SCRFDNcnn();
+//    private SCRFDNcnn scrfdncnn = new SCRFDNcnn();
+    private Yolov8Ncnn yolov8Ncnn = new Yolov8Ncnn();
     private int facing = 0;
 
     private Spinner spinnerModel;
@@ -54,24 +55,24 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        cameraView = (SurfaceView) findViewById(R.id.cameraview);
+        cameraView = findViewById(R.id.cameraview);
 
         cameraView.getHolder().setFormat(PixelFormat.RGBA_8888);
         cameraView.getHolder().addCallback(this);
 
-        Button buttonSwitchCamera = (Button) findViewById(R.id.buttonSwitchCamera);
+        Button buttonSwitchCamera = findViewById(R.id.buttonSwitchCamera);
         buttonSwitchCamera.setOnClickListener(arg0 -> {
 
             int new_facing = 1 - facing;
 
-            scrfdncnn.closeCamera();
+            yolov8Ncnn.closeCamera();
 
-            scrfdncnn.openCamera(new_facing);
+            yolov8Ncnn.openCamera(new_facing);
 
             facing = new_facing;
         });
 
-        spinnerModel = (Spinner) findViewById(R.id.spinnerModel);
+        spinnerModel = findViewById(R.id.spinnerModel);
         spinnerModel.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> arg0, View arg1, int position, long id) {
@@ -86,7 +87,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             }
         });
 
-        spinnerCPUGPU = (Spinner) findViewById(R.id.spinnerCPUGPU);
+        spinnerCPUGPU = findViewById(R.id.spinnerCPUGPU);
         spinnerCPUGPU.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> arg0, View arg1, int position, long id) {
@@ -105,7 +106,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 
     private void reload() {
-        boolean ret_init = scrfdncnn.loadModel(getAssets(), current_model, current_cpugpu);
+        boolean ret_init = yolov8Ncnn.loadModel(getAssets(), current_model, current_cpugpu);
         if (!ret_init) {
             Log.e("MainActivity", "scrfdncnn loadModel failed");
         }
@@ -114,7 +115,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
         // 设置显示的SurfaceView ANativeWindow
-        scrfdncnn.setOutputWindow(holder.getSurface());
+        yolov8Ncnn.setOutputWindow(holder.getSurface());
     }
 
     @Override
@@ -133,14 +134,14 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA);
         }
 
-        scrfdncnn.openCamera(facing);
+        yolov8Ncnn.openCamera(facing);
     }
 
     @Override
     public void onPause() {
         super.onPause();
 
-        scrfdncnn.closeCamera();
+        yolov8Ncnn.closeCamera();
     }
 
 
