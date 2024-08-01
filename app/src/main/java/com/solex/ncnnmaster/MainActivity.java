@@ -16,6 +16,7 @@ package com.solex.ncnnmaster;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.PixelFormat;
 import android.os.Bundle;
@@ -80,6 +81,15 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             ncnn.closeCamera();
             ncnn.openCamera(new_facing);
             facing = new_facing;
+        });
+
+
+
+
+        Button btn_jump_to_img = findViewById(R.id.btn_jump_to_img);
+
+        btn_jump_to_img.setOnClickListener(v -> {
+            startActivity(new Intent(this,ImageActivity.class));
         });
 
         Button openCamera = findViewById(R.id.open_camera);
@@ -163,11 +173,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         switch (current_model) {
             case TAG_SCRFD:
                 weights = getModelWeightList(R.array.model_array);
-                data.addAll(weights);
                 break;
             case TAG_YOLOV8:
                 weights = getModelWeightList(R.array.model_yolo_array);
-                data.addAll(weights);
                 break;
         }
         data.addAll(weights);
@@ -176,7 +184,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
 
     private ArrayList<String> getModelWeightList(int res) {
-        String[] modelArray = getResources().getStringArray(R.array.model_array);
+        String[] modelArray = getResources().getStringArray(res);
         // 将字符串数组转换为ArrayList
         ArrayList<String> modelList = new ArrayList<>(Arrays.asList(modelArray));
         return modelList;
@@ -203,6 +211,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
         if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_DENIED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA);
+        }
+
+        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_DENIED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CAMERA);
         }
     }
 

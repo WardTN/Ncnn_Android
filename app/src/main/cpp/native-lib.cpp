@@ -12,18 +12,23 @@
 
 #include "scrfd.h"
 #include "yolo.h"
+#include "YoloObb.h"
 
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+using namespace cv;
 
 #define SCRFD_TYPE                             200
 #define YOLO_TYPE                             SCRFD_TYPE + 1
+
 
 int paramType = SCRFD_TYPE;
 
@@ -102,7 +107,6 @@ static SCRFD *g_scrfd = 0;
 static Yolo *g_yolo = 0;
 
 static ncnn::Mutex lock;
-
 
 
 class MyNdkCamera : public NdkCameraWindow {
@@ -310,4 +314,42 @@ Java_com_solex_ncnnmaster_Yolov8Ncnn_loadModel(JNIEnv *env, jobject thiz, jobjec
     }
 
     return JNI_TRUE;
+}
+
+
+static YoloObb *yoloObb = 0;
+
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_solex_ncnnmaster_Yolov8obb_loadObbModel(JNIEnv *env, jobject thiz, jobject assetManager,
+                                                 jstring bin, jstring param) {
+    AAssetManager *mgr = AAssetManager_fromJava(env, assetManager);
+
+    const char *paramPath = env->GetStringUTFChars(param, nullptr);
+    const char *binPath = env->GetStringUTFChars(bin, nullptr);
+
+    yoloObb = new YoloObb;
+    yoloObb->loadModel(mgr, paramPath, binPath);
+
+    env->ReleaseStringUTFChars(bin, binPath);
+    env->ReleaseStringUTFChars(param, paramPath);
+}
+
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_solex_ncnnmaster_Yolov8obb_obbDetect(JNIEnv *env, jobject thiz, jstring img) {
+
+    const char *imgPathCStr = env->GetStringUTFChars(img, nullptr);
+    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "输入路径为 %s", imgPathCStr);
+    std::string imgPath(imgPathCStr);
+    env->ReleaseStringUTFChars(img, imgPathCStr);
+
+    // 读取图像文件到 Mat 对象
+    Mat mat = imread(imgPathCStr, IMREAD_COLOR);
+
+
+//    yoloObb->detectYolov8(imgPathCStr);
+
 }
