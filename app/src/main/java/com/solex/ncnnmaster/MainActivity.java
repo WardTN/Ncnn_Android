@@ -38,6 +38,7 @@ import java.util.Arrays;
 
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
     public static final int REQUEST_CAMERA = 100;
+    public static final int REQUEST_WRITE = 200;
 
     //    private SCRFDNcnn scrfdncnn = new SCRFDNcnn();
     private BaseNcnn ncnn = new Yolov8Ncnn();
@@ -89,6 +90,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         Button btn_jump_to_img = findViewById(R.id.btn_jump_to_img);
 
         btn_jump_to_img.setOnClickListener(v -> {
+//            if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_DENIED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE);
+//            }
             startActivity(new Intent(this,ImageActivity.class));
         });
 
@@ -213,9 +217,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA);
         }
 
-        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_DENIED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CAMERA);
-        }
     }
 
     @Override

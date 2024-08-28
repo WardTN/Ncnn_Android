@@ -52,12 +52,13 @@ public:
     YoloObb();
 
     void loadModel(AAssetManager *mgr, const char *paramPath, const char *binPath);
+//    void detectYolov8(const ncnn::Mat,std::vector<ObbObject>& objects);
+    cv::Mat  detectYolov8(const ncnn::Mat);
 
-    void detectYolov8(const char *imgPath);
 
 private:
     ncnn::Net yolo;
-    cv::Mat bgr;
+//    cv::Mat bgr;
     std::vector<ObbObject> objects;
 };
 

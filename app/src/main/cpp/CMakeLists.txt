@@ -71,4 +71,5 @@ target_link_libraries( # Specifies the target library.
         ${log-lib}
         ${OpenCV_LIBS}
         camera2ndk mediandk
+        jnigraphics
         )

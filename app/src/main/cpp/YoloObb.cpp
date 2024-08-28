@@ -2,10 +2,10 @@
 // Created by deqi_chen on 2024/8/1.
 //
 
-#include "YoloObb.h"
-#include <android/log.h>
-
 #include "net.h"
+#include "YoloObb.h"
+
+#include <android/log.h>
 
 #if defined(USE_NCNN_SIMPLEOCV)
 #include "simpleocv.h"
@@ -22,6 +22,15 @@
 #include <stdio.h>
 #include <vector>
 #include <cmath>
+
+
+#define TAG "Yolov8-jni" // 这个是自定义的LOG的标识
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG,TAG ,__VA_ARGS__) // 定义LOGD类型
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO,TAG ,__VA_ARGS__) // 定义LOGI类型
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN,TAG ,__VA_ARGS__) // 定义LOGW类型
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR,TAG ,__VA_ARGS__) // 定义LOGE类型
+#define LOGF(...) __android_log_print(ANDROID_LOG_FATAL,TAG ,__VA_ARGS__) // 定义LOGF类型
+
 
 
 static float fast_exp(float x) {
@@ -396,6 +405,10 @@ static void generate_proposals(std::vector<ObbGridAndStride> grid_strides, const
 
 
 static void draw_objects(const cv::Mat &bgr, const std::vector<ObbObject> &objects) {
+
+    LOGD("draw_objects Start");
+
+
     static const char *class_names[] = {
             "plane", "ship", "storage tank", "baseball diamond", "tennis court",
             "basketball court", "ground track field", "harbor", "bridge", "large vehicle",
@@ -475,9 +488,11 @@ static void draw_objects(const cv::Mat &bgr, const std::vector<ObbObject> &objec
                     textcc, 1);
     }
 
-    cv::imshow("image", image);
-    cv::imwrite("yolov8s-obb.jpg", image);
-    cv::waitKey(0);
+    LOGD("draw_objects End");
+
+//    cv::imshow("image", image);
+//    cv::imwrite("yolov8s-obb.jpg", image);
+//    cv::waitKey(0);
 }
 
 //int main(int argc, char** argv)
@@ -515,102 +530,121 @@ void YoloObb::loadModel(AAssetManager *mgr, const char *paramPath, const char *b
 }
 
 
-void YoloObb::detectYolov8(const char *imgPath) {
+cv::Mat YoloObb::detectYolov8(const ncnn::Mat inMat) {
 
-//    bgr = cv::imread(imgPath, 1);
-//
-//    int width = bgr.cols;
-//    int height = bgr.rows;
-//
-//    const int target_size = 1024;
-//    const float prob_threshold = 0.4f;
-//    const float nms_threshold = 0.5f;
-//
-//    // pad to multiple of 32
-//    int w = width;
-//    int h = height;
-//    float scale = 1.f;
-//    if (w > h) {
-//        scale = (float) target_size / w;
-//        w = target_size;
-//        h = h * scale;
-//    } else {
-//        scale = (float) target_size / h;
-//        h = target_size;
-//        w = w * scale;
+
+//    if (inMat.empty()) {
+//        __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "Error: inMat is empty");
+//        return NULL;
 //    }
-//
-//    ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR2RGB, width, height,
-//                                                 w, h);
-//
-//    // pad to target_size rectangle
-//    int wpad = (w + 31) / 32 * 32 - w;
-//    int hpad = (h + 31) / 32 * 32 - h;
-//    ncnn::Mat in_pad;
-//    ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2,
-//                           ncnn::BORDER_CONSTANT, 0.f);
-//
-//    const float norm_vals[3] = {1 / 255.f, 1 / 255.f, 1 / 255.f};
-//    in_pad.substract_mean_normalize(0, norm_vals);
-//
-//    ncnn::Extractor ex = yolo.create_extractor();
-//    ex.input("images", in_pad);
-//
-//    ncnn::Mat out;
-//    ex.extract("out", out);
-//
-//    std::vector<int> strides = {8, 16, 32};
-//    std::vector<ObbGridAndStride> grid_strides;
-//    generate_grids_and_stride(in_pad.w, in_pad.h, strides, grid_strides);
-//
-//    std::vector<ObbObject> proposals;
-//    std::vector<ObbObject> objects8;
-//    generate_proposals(grid_strides, out, prob_threshold, objects8);
-//
-//    proposals.insert(proposals.end(), objects8.begin(), objects8.end());
-//
-//    // sort all proposals by score from highest to lowest
-//    qsort_descent_inplace(proposals);
-//
-//    // apply nms with nms_threshold
-//    std::vector<int> picked;
-//    nms_sorted_bboxes(proposals, picked, nms_threshold);
-//
-//    int count = picked.size();
-//    objects.resize(count);
-//    double pi = M_PI;
-//    double pi_2 = M_PI_2;
-//    for (int i = 0; i < count; i++) {
-//        objects[i] = proposals[picked[i]];
-//
-//        float w_ = objects[i].r_rect.w > objects[i].r_rect.h ? objects[i].r_rect.w
-//                                                             : objects[i].r_rect.h;
-//        float h_ = objects[i].r_rect.w > objects[i].r_rect.h ? objects[i].r_rect.h
-//                                                             : objects[i].r_rect.w;
-//        float a_ = (float) std::fmod(
-//                (objects[i].r_rect.w > objects[i].r_rect.h ? objects[i].r_rect.a :
-//                 objects[i].r_rect.a + pi_2), pi);
-//
-//        float xc = (objects[i].r_rect.x_ctr - (wpad / 2)) / scale;
-//        float yc = (objects[i].r_rect.y_ctr - (hpad / 2)) / scale;
-//        float w = w_ / scale;
-//        float h = h_ / scale;
-//
-//        // clip
-//        xc = std::max(std::min(xc, (float) (width - 1)), 0.f);
-//        yc = std::max(std::min(yc, (float) (height - 1)), 0.f);
-//        w = std::max(std::min(w, (float) (width - 1)), 0.f);
-//        h = std::max(std::min(h, (float) (height - 1)), 0.f);
-//
-//
-//        objects[i].r_rect.x_ctr = xc;
-//        objects[i].r_rect.y_ctr = yc;
-//        objects[i].r_rect.w = w;
-//        objects[i].r_rect.h = h;
-//        objects[i].r_rect.a = a_;
-//    }
-//
-//    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "detectYolov8 Over");
+
+    LOGD("开始进行下一步");
+
+    cv::Mat rgb = cv::Mat::zeros(inMat.h, inMat.w, CV_8UC3);
+    inMat.to_pixels(rgb.data, ncnn::Mat::PIXEL_RGB);
+
+    if (rgb.empty()) {
+        LOGD("rgb 尺寸为 %d %d", rgb.cols, rgb.rows);
+    }
+
+    int width = rgb.cols;
+    int height = rgb.rows;
+
+    const int target_size = 1024;
+    const float prob_threshold = 0.4f;
+    const float nms_threshold = 0.5f;
+
+    // pad to multiple of 32
+    int w = width;
+    int h = height;
+    float scale = 1.f;
+    if (w > h) {
+        scale = (float) target_size / w;
+        w = target_size;
+        h = h * scale;
+    } else {
+        scale = (float) target_size / h;
+        h = target_size;
+        w = w * scale;
+    }
+
+    ncnn::Mat in = ncnn::Mat::from_pixels_resize(rgb.data, ncnn::Mat::PIXEL_RGB, width, height,
+                                                 w, h);
+    // pad to target_size rectangle
+    int wpad = (w + 31) / 32 * 32 - w;
+    int hpad = (h + 31) / 32 * 32 - h;
+    ncnn::Mat in_pad;
+    ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2,
+                           ncnn::BORDER_CONSTANT, 0.f);
+
+    const float norm_vals[3] = {1 / 255.f, 1 / 255.f, 1 / 255.f};
+    in_pad.substract_mean_normalize(0, norm_vals);
+
+    LOGD("Image normalization completed successfully");
+
+    ncnn::Extractor ex = yolo.create_extractor();
+    ex.input("images", in_pad);
+
+    ncnn::Mat out;
+    ex.extract("out", out);
+
+    std::vector<int> strides = {8, 16, 32};
+    std::vector<ObbGridAndStride> grid_strides;
+    generate_grids_and_stride(in_pad.w, in_pad.h, strides, grid_strides);
+
+    std::vector<ObbObject> proposals;
+    std::vector<ObbObject> objects8;
+    generate_proposals(grid_strides, out, prob_threshold, objects8);
+
+    proposals.insert(proposals.end(), objects8.begin(), objects8.end());
+
+    // sort all proposals by score from highest to lowest
+    qsort_descent_inplace(proposals);
+
+    // apply nms with nms_threshold
+    std::vector<int> picked;
+    nms_sorted_bboxes(proposals, picked, nms_threshold);
+
+    int count = picked.size();
+    objects.resize(count);
+    double pi = M_PI;
+    double pi_2 = M_PI_2;
+    for (int i = 0; i < count; i++) {
+        objects[i] = proposals[picked[i]];
+
+        float w_ = objects[i].r_rect.w > objects[i].r_rect.h ? objects[i].r_rect.w
+                                                             : objects[i].r_rect.h;
+        float h_ = objects[i].r_rect.w > objects[i].r_rect.h ? objects[i].r_rect.h
+                                                             : objects[i].r_rect.w;
+        float a_ = (float) std::fmod(
+                (objects[i].r_rect.w > objects[i].r_rect.h ? objects[i].r_rect.a :
+                 objects[i].r_rect.a + pi_2), pi);
+
+        float xc = (objects[i].r_rect.x_ctr - (wpad / 2)) / scale;
+        float yc = (objects[i].r_rect.y_ctr - (hpad / 2)) / scale;
+        float w = w_ / scale;
+        float h = h_ / scale;
+
+        // clip
+        xc = std::max(std::min(xc, (float) (width - 1)), 0.f);
+        yc = std::max(std::min(yc, (float) (height - 1)), 0.f);
+        w = std::max(std::min(w, (float) (width - 1)), 0.f);
+        h = std::max(std::min(h, (float) (height - 1)), 0.f);
+
+
+        objects[i].r_rect.x_ctr = xc;
+        objects[i].r_rect.y_ctr = yc;
+        objects[i].r_rect.w = w;
+        objects[i].r_rect.h = h;
+        objects[i].r_rect.a = a_;
+    }
+
+    LOGD("detectYolov8 Over");
+
+    draw_objects(rgb, objects);
+
+    return rgb;
+
 }
 
 

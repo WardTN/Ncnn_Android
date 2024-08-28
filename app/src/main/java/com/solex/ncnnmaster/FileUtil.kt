@@ -67,37 +67,35 @@ fun getAseetFilePath(): String? {
  *
  * @param filePath 外部文件夹名
  */
-fun copyAssetsToFileDir(filePath: String, context: Context) {
-    var filePath = filePath
+fun copyFilesFromAssets(context: Context, oldPath: String, newPath: String) {
     try {
-        val fileList = context.assets.list(filePath)
-        if (fileList!!.size > 0) { //如果是目录
-            val file = File(getAseetFilePath() + "/" + filePath)
-            file.mkdirs() //如果文件夹不存在，则递归
-            for (fileName in fileList) {
-                filePath = filePath + File.separator + fileName
-                copyAssetsToFileDir(filePath, context)
-                filePath = filePath.substring(0, filePath.lastIndexOf(File.separator))
+        val fileNames = context.assets.list(oldPath)
+        if (fileNames!!.isNotEmpty()) {
+            // directory
+            val file = File(newPath)
+            if (!file.mkdir()) {
+                Log.d("mkdir", "can't make folder")
             }
-        } else { //如果是文件
-            val inputStream: InputStream = context.assets.open(filePath)
-            val file = File(getAseetFilePath() + "/" + filePath)
-            if (!file.exists() || file.length() == 0L) {
-                Log.e("CHEN",("copyFile $filePath"))
-                val fos = FileOutputStream(file)
-                var len = -1
-                val buffer = ByteArray(1024)
-                while (inputStream.read(buffer).also { len = it } != -1) {
-                    fos.write(buffer, 0, len)
-                }
-                fos.flush()
-                inputStream.close()
-                fos.close()
+            for (fileName in fileNames) {
+                copyFilesFromAssets(context, "$oldPath/$fileName", "$newPath/$fileName")
             }
+        } else {
+            // file
+            val `is` = context.assets.open(oldPath)
+            val fos = FileOutputStream(File(newPath))
+            val buffer = ByteArray(1024)
+            var byteCount: Int
+            while (`is`.read(buffer).also { byteCount = it } != -1) {
+                fos.write(buffer, 0, byteCount)
+            }
+            fos.flush()
+            `is`.close()
+            fos.close()
         }
-    } catch (e: Exception) {
-        LoggerUtil.dq_log("拷贝 Asset 文件出错")
+    } catch (e: java.lang.Exception) {
+        // TODO Auto-generated catch block
         e.printStackTrace()
     }
 }
+
 
