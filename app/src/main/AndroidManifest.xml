@@ -23,7 +23,7 @@
 
         <activity
             android:name=".ImageActivity"
-            android:exported="false" /> <!-- <activity -->
+            android:exported="false" android:screenOrientation="landscape" /> <!-- <activity -->
         <!-- android:name=".SplashActivity" -->
         <!-- android:exported="false" /> -->
         <activity

@@ -11,4 +11,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"/>
 
+    <ImageView
+        android:id="@+id/iv"
+        android:scaleType="fitXY"
+        app:layout_constraintTop_toBottomOf="@+id/btn"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

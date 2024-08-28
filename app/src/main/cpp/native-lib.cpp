@@ -608,39 +608,83 @@ Java_com_solex_ncnnmaster_Yolov8obb_loadObbModel(JNIEnv *env, jobject thiz, jobj
     env->ReleaseStringUTFChars(param, paramPath);
 }
 
+static bool MatToBitmap(JNIEnv *env, const cv::Mat &mat, jobject &bitmap) {
+    AndroidBitmapInfo info;
+    void* pixels = nullptr;
+
+    if (AndroidBitmap_getInfo(env, bitmap, &info) < 0) {
+        __android_log_print(ANDROID_LOG_DEBUG, "ncnn","Failed to get Bitmap info.");
+        return false;
+    }
+
+    if (AndroidBitmap_lockPixels(env, bitmap, &pixels) < 0) {
+        __android_log_print(ANDROID_LOG_DEBUG, "ncnn","Failed to lock Bitmap pixels.");
+        return false;
+    }
+
+    cv::Mat tmp(info.height, info.width, CV_8UC4, pixels);
+    if (mat.type() == CV_8UC1) {
+        cv::cvtColor(mat, tmp, cv::COLOR_GRAY2RGBA);
+    } else if (mat.type() == CV_8UC3) {
+        cv::cvtColor(mat, tmp, cv::COLOR_BGR2RGBA);
+    } else if (mat.type() == CV_8UC4) {
+        mat.copyTo(tmp);
+    } else {
+        AndroidBitmap_unlockPixels(env, bitmap);
+        __android_log_print(ANDROID_LOG_DEBUG, "ncnn","Unsupported Mat type.");
+        return false;
+    }
+
+    AndroidBitmap_unlockPixels(env, bitmap);
+    return true;
+}
 
 extern "C"
-JNIEXPORT void JNICALL
+JNIEXPORT jobject JNICALL
 Java_com_solex_ncnnmaster_Yolov8obb_obbDetect(JNIEnv *env, jobject thiz, jobject bitmap) {
 
-//    const char *imgPathCStr = env->GetStringUTFChars(img, nullptr);
-//    __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "输入路径为 %s", imgPathCStr);
-//    std::string imgPath(imgPathCStr);
-//    env->ReleaseStringUTFChars(img, imgPathCStr);
 
-//    // 读取图像文件到 Mat 对象
-//    Mat mat = imread(imgPathCStr, IMREAD_COLOR);
-
-
-//    yoloObb->detectYolov8(imgPathCStr);
     AndroidBitmapInfo info;
     AndroidBitmap_getInfo(env, bitmap, &info);
 
-    const int width = info.width;
-    const int height = info.height;
-//    if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888)
-//        __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "输入格式不为 ANDROID_BITMAP_FORMAT_RGBA_8888");
-//        return;
     __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "输入图片数据没有问题");
     ncnn::Mat in = ncnn::Mat::from_android_bitmap(env, bitmap, ncnn::Mat::PIXEL_RGB);
-
-//    cv::Mat rgb = cv::Mat::zeros(in.h,in.w,CV_8UC3);
-//    in.to_pixels(rgb.data, ncnn::Mat::PIXEL_RGB);
     std::vector<ObbObject> objects;
-//    yoloObb->detectYolov8(in, objects);
     cv::Mat mat = yoloObb->detectYolov8(in);
 
+    // 检查 mat 是否为空
+    if (mat.empty()) {
+        __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "Detect result is empty.");
+        return nullptr;
+    }
+
+    // 获取 Bitmap 类和创建 Bitmap 方法的 ID
+    jclass bitmapClass = env->FindClass("android/graphics/Bitmap");
+    jmethodID createBitmapMethod = env->GetStaticMethodID(bitmapClass, "createBitmap","(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
+    // 获取 Bitmap.Config 类和 ARGB_8888 静态成员
+    jclass bitmapConfigClass = env->FindClass("android/graphics/Bitmap$Config");
+    jmethodID valueOfMethod = env->GetStaticMethodID(bitmapConfigClass, "valueOf","(Ljava/lang/String;)Landroid/graphics/Bitmap$Config;");
+    jstring argb8888Str = env->NewStringUTF("ARGB_8888");
+    jobject argb8888Config = env->CallStaticObjectMethod(bitmapConfigClass, valueOfMethod, argb8888Str);
+
+    // 创建一个与 Mat 大小匹配的 Bitmap 对象
+    jobject outBitmap = env->CallStaticObjectMethod(bitmapClass, createBitmapMethod,
+                                                    mat.cols, mat.rows, argb8888Config);
+    if (outBitmap == nullptr) {
+        __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "Failed to create output Bitmap!");
+        return nullptr;
+    }
+
+    // 使用 MatToBitmap 函数将 Mat 转换为 Bitmap
+    if (!MatToBitmap(env, mat, outBitmap)) {
+        __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "Failed to convert Mat to Bitmap!");
+        return nullptr;
+    }
+
+    return outBitmap;
 }
+
+
 
 extern "C"
 JNIEXPORT jboolean JNICALL

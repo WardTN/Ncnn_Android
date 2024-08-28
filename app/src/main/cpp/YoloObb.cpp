@@ -404,7 +404,7 @@ static void generate_proposals(std::vector<ObbGridAndStride> grid_strides, const
 }
 
 
-static void draw_objects(const cv::Mat &bgr, const std::vector<ObbObject> &objects) {
+static cv::Mat draw_objects(const cv::Mat &bgr, const std::vector<ObbObject> &objects) {
 
     LOGD("draw_objects Start");
 
@@ -490,6 +490,7 @@ static void draw_objects(const cv::Mat &bgr, const std::vector<ObbObject> &objec
 
     LOGD("draw_objects End");
 
+    return image;
 //    cv::imshow("image", image);
 //    cv::imwrite("yolov8s-obb.jpg", image);
 //    cv::waitKey(0);
@@ -532,11 +533,6 @@ void YoloObb::loadModel(AAssetManager *mgr, const char *paramPath, const char *b
 
 cv::Mat YoloObb::detectYolov8(const ncnn::Mat inMat) {
 
-
-//    if (inMat.empty()) {
-//        __android_log_print(ANDROID_LOG_DEBUG, "ncnn", "Error: inMat is empty");
-//        return NULL;
-//    }
 
     LOGD("开始进行下一步");
 
@@ -641,9 +637,9 @@ cv::Mat YoloObb::detectYolov8(const ncnn::Mat inMat) {
 
     LOGD("detectYolov8 Over");
 
-    draw_objects(rgb, objects);
+//    draw_objects(rgb, objects);
 
-    return rgb;
+    return draw_objects(rgb, objects);;
 
 }
 
