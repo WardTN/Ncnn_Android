@@ -1,5 +1,7 @@
-# ncnn-android
-#Learn From https://github.com/nihui/ncnn-android-scrfd
 
-# JNI 调用算法 实现检测
-1. 实现NCNN 调用 自训练算法
+
+# JNI 通过 ncnn 调用算法检测 及绘制
+# 1. 人脸检测
+# 2. 物体类别算法检测
+
+# Thanks to (https://github.com/nihui/ncnn-android-scrfd)

@@ -319,10 +319,12 @@ generate_grids_and_stride(const int target_w, const int target_h, std::vector<in
     }
 }
 
+
 static void generate_proposals(std::vector<ObbGridAndStride> grid_strides, const ncnn::Mat &pred,
                                float prob_threshold, std::vector<ObbObject> &objects) {
+    // 网格点的数量
     const int num_points = grid_strides.size();
-    const int num_class = 15;
+    const int num_class = 15;  // 物体类别的数量
     const int reg_max_1 = 16;
 
     for (int i = 0; i < num_points; i++) {
@@ -535,7 +537,7 @@ cv::Mat YoloObb::detectYolov8(const ncnn::Mat inMat) {
 
 
     LOGD("开始进行下一步");
-
+    //将输入数据转换为 OpenCV 图像格式 确保输入图像为 RGB 格式
     cv::Mat rgb = cv::Mat::zeros(inMat.h, inMat.w, CV_8UC3);
     inMat.to_pixels(rgb.data, ncnn::Mat::PIXEL_RGB);
 
@@ -543,14 +545,16 @@ cv::Mat YoloObb::detectYolov8(const ncnn::Mat inMat) {
         LOGD("rgb 尺寸为 %d %d", rgb.cols, rgb.rows);
     }
 
+    // 获取输入图像尺寸
     int width = rgb.cols;
     int height = rgb.rows;
 
-    const int target_size = 1024;
-    const float prob_threshold = 0.4f;
-    const float nms_threshold = 0.5f;
+    // 设置目标尺寸、阈值和NMS阈值
+    const int target_size = 1024; //目标检测时图像缩放的目标尺寸 1024x1024
+    const float prob_threshold = 0.4f; //目标检测时置信度阈值
+    const float nms_threshold = 0.5f; //目标检测时NMS阈值
 
-    // pad to multiple of 32
+    // pad to multiple of 32 调整图像尺寸
     int w = width;
     int h = height;
     float scale = 1.f;
@@ -569,21 +573,25 @@ cv::Mat YoloObb::detectYolov8(const ncnn::Mat inMat) {
     // pad to target_size rectangle
     int wpad = (w + 31) / 32 * 32 - w;
     int hpad = (h + 31) / 32 * 32 - h;
+
     ncnn::Mat in_pad;
     ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2,
                            ncnn::BORDER_CONSTANT, 0.f);
 
+    // 图像归一化处理
     const float norm_vals[3] = {1 / 255.f, 1 / 255.f, 1 / 255.f};
     in_pad.substract_mean_normalize(0, norm_vals);
 
     LOGD("Image normalization completed successfully");
 
+    // 模型推理
     ncnn::Extractor ex = yolo.create_extractor();
     ex.input("images", in_pad);
 
     ncnn::Mat out;
     ex.extract("out", out);
 
+    // 生成网格 和 步幅
     std::vector<int> strides = {8, 16, 32};
     std::vector<ObbGridAndStride> grid_strides;
     generate_grids_and_stride(in_pad.w, in_pad.h, strides, grid_strides);
@@ -594,11 +602,12 @@ cv::Mat YoloObb::detectYolov8(const ncnn::Mat inMat) {
 
     proposals.insert(proposals.end(), objects8.begin(), objects8.end());
 
-    // sort all proposals by score from highest to lowest
+    // 排序和非极大值抑制
     qsort_descent_inplace(proposals);
 
     // apply nms with nms_threshold
     std::vector<int> picked;
+    // 使用 NMS 去除重叠的检测框。
     nms_sorted_bboxes(proposals, picked, nms_threshold);
 
     int count = picked.size();
@@ -616,17 +625,17 @@ cv::Mat YoloObb::detectYolov8(const ncnn::Mat inMat) {
                 (objects[i].r_rect.w > objects[i].r_rect.h ? objects[i].r_rect.a :
                  objects[i].r_rect.a + pi_2), pi);
 
+        // 宽高和角度归一化
         float xc = (objects[i].r_rect.x_ctr - (wpad / 2)) / scale;
         float yc = (objects[i].r_rect.y_ctr - (hpad / 2)) / scale;
         float w = w_ / scale;
         float h = h_ / scale;
 
-        // clip
+        // clip 边界裁剪
         xc = std::max(std::min(xc, (float) (width - 1)), 0.f);
         yc = std::max(std::min(yc, (float) (height - 1)), 0.f);
         w = std::max(std::min(w, (float) (width - 1)), 0.f);
         h = std::max(std::min(h, (float) (height - 1)), 0.f);
-
 
         objects[i].r_rect.x_ctr = xc;
         objects[i].r_rect.y_ctr = yc;
